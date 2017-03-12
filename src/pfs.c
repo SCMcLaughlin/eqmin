@@ -83,6 +83,7 @@ int pfs_open(Pfs* pfs, Buffer* path)
     uint32_t p, n, i;
     PfsHeader* h;
     Buffer* nameData;
+    int isGequip = (strstr(buf_str(path), "gequip.s3d") != NULL);
     
     pfs_init(pfs);
     
@@ -200,6 +201,19 @@ int pfs_open(Pfs* pfs, Buffer* path)
         p += namelen;
         
         if (p > len) goto bad_name;
+        
+        /*
+            gequip.s3d is malformed; "trace.dbg" appears as a filename, but there is no corresponding file;
+            instead it has the index of the next file, "transparent.bmp", and everything else is similarly
+            shifted over by one index. Should be enough to skip the name "trace.dbg" without advancing the
+            index.
+        */
+        if (isGequip && strcmp(name, "trace.dbg") == 0)
+        {
+            i--;
+            n--;
+            continue;
+        }
         
         ent = array_get(&pfs->entries, i, PfsEntry);
         

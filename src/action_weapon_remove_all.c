@@ -1,7 +1,7 @@
 
 #include "actions.h"
 
-static int wep_rm_handle_wld(Opts* opt, Wld* wld, Pfs* pfs, Buffer* path, Buffer* wldName)
+static int wep_rm_handle_wld(Wld* wld, Pfs* pfs, Buffer* path, Buffer* wldName, uint32_t* outCount)
 {
     char* strings = wld->strings;
     const char* stringsEnd = strings + (-wld->stringsLength);
@@ -30,10 +30,9 @@ static int wep_rm_handle_wld(Opts* opt, Wld* wld, Pfs* pfs, Buffer* path, Buffer
             fprintf(stderr, "Error: could not save edited '%s' into '%s', errcode %i\n", buf_str(wldName), buf_str(path), rc);
             return rc;
         }
+        
+        *outCount += rmCount;
     }
-    
-    if (!opt_flag(opt, OPT_Quiet))
-        printf("Removed %u weapon models from '%s' internal file '%s'\n", rmCount, buf_str(path), buf_str(wldName));
     
     return ERR_None;
 }
@@ -41,6 +40,7 @@ static int wep_rm_handle_wld(Opts* opt, Wld* wld, Pfs* pfs, Buffer* path, Buffer
 static int wep_rm_handle_s3d(Opts* opt, Buffer* path)
 {
     Pfs pfs;
+    uint32_t rmCount = 0;
     uint32_t i = 0;
     int rc;
     
@@ -91,11 +91,25 @@ static int wep_rm_handle_s3d(Opts* opt, Buffer* path)
             goto finish;
         }
         
-        rc = wep_rm_handle_wld(opt, &wld, &pfs, path, name);
+        rc = wep_rm_handle_wld(&wld, &pfs, path, name, &rmCount);
         wld_close(&wld);
         
         if (rc) goto finish;
     }
+    
+    if (rmCount > 0)
+    {
+        rc = pfs_save(&pfs);
+        
+        if (rc)
+        {
+            fprintf(stderr, "Error: failed to save '%s', errcode %i\n", pfs_path(&pfs), rc);
+            goto finish;
+        }
+    }
+    
+    if (!opt_flag(opt, OPT_Quiet))
+        printf("Removed %u weapon models from '%s'\n", rmCount, buf_str(path));
     
 finish:
     pfs_close(&pfs);
