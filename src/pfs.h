@@ -30,4 +30,6 @@ int pfs_put_compressed(Pfs* pfs, const char* name, uint32_t namelen, const void*
 
 Buffer* pfs_get_name(Pfs* pfs, uint32_t index);
 
+int pfs_conditional_file_transfer(Pfs* src, Pfs* dst, PfsIncludeFileFunc func, uint32_t* includedCount, uint32_t* excludedCount);
+
 #endif/*PFS_H*/

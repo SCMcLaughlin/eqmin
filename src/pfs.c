@@ -607,3 +607,70 @@ Buffer* pfs_get_name(Pfs* pfs, uint32_t index)
     PfsEntry* ent = array_get(&pfs->entries, index, PfsEntry);
     return (ent != NULL) ? ent->name : NULL;
 }
+
+static int pfs_transfer_file(Pfs* src, Pfs* dst, uint32_t index, Buffer* name)
+{
+    const byte* data;
+    uint32_t inflatedLen;
+    uint32_t deflatedLen;
+    int rc;
+    
+    data = pfs_get_compressed_raw_by_index(src, index, &inflatedLen, &deflatedLen);
+    
+    if (!data)
+    {
+        fprintf(stderr, "Error: could not retrieve internal PFS file '%s'\n", buf_str(name));
+        return ERR_CouldNotOpen;
+    }
+    
+    rc = pfs_put_compressed(dst, buf_str(name), buf_length(name), data, inflatedLen, deflatedLen);
+    
+    if (rc)
+    {
+        fprintf(stderr, "Error: failed to copy internal PFS file '%s', errcode %i\n", buf_str(name), rc);
+        return rc;
+    }
+    
+    return ERR_None;
+}
+
+int pfs_conditional_file_transfer(Pfs* src, Pfs* dst, PfsIncludeFileFunc func, uint32_t* includedCount, uint32_t* excludedCount)
+{
+    uint32_t included = 0;
+    uint32_t excluded = 0;
+    uint32_t i = 0;
+    int rc = ERR_None;
+    
+    for (;;)
+    {
+        Buffer* name = pfs_get_name(src, i++);
+        
+        if (!name) break;
+        
+        if (func(src, name))
+        {
+            included++;
+            
+            rc = pfs_transfer_file(src, dst, i - 1, name);
+        
+            if (rc)
+            {
+                fprintf(stderr, "Error: failed to copy internal PFS file '%s', errcode %i\n", buf_str(name), rc);
+                goto finish;
+            }
+        }
+        else
+        {
+            excluded++;
+        }
+    }
+    
+    if (includedCount)
+        *includedCount = included;
+    
+    if (excludedCount)
+        *excludedCount = excluded;
+    
+finish:
+    return rc;
+}

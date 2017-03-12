@@ -14,6 +14,8 @@ typedef struct Pfs {
     Buffer* path;
 } Pfs;
 
+typedef int(*PfsIncludeFileFunc)(Pfs* pfs, Buffer* name);
+
 typedef struct Wld {
     Array   fragsByIndex;
     HashTbl fragsByNameRef;

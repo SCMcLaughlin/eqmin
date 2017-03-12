@@ -116,6 +116,57 @@ finish:
     return rc;
 }
 
+static int wep_rm_eqg_blacklist(Pfs* pfs, Buffer* name)
+{
+    const char* str = buf_str(name);
+    uint32_t len = buf_length(name);
+    
+    (void)pfs;
+    
+    if (len < 6)
+        return false;
+    
+    return !(str[0] == 'i' && str[1] == 't' && isdigit(str[2]) && (strcmp(str + len - 3, "mod") == 0 || strcmp(str + len - 3, "mds") == 0));
+}
+
+static int wep_rm_handle_eqg(Opts* opt, Buffer* path)
+{
+    Pfs src, dst;
+    uint32_t rmCount;
+    int rc;
+    
+    pfs_init(&dst);
+    rc = pfs_open(&src, path);
+    
+    if (rc)
+    {
+        fprintf(stderr, "Error: could not open '%s', errcode %i\n", buf_str(path), rc);
+        goto finish;
+    }
+    
+    rc = pfs_conditional_file_transfer(&src, &dst, wep_rm_eqg_blacklist, NULL, &rmCount);
+    if (rc) goto finish;
+    
+    if (rmCount > 0)
+    {
+        rc = pfs_save_as(&dst, pfs_path(&src));
+        
+        if (rc)
+        {
+            fprintf(stderr, "Error: failed to save '%s', errcode %i\n", pfs_path(&src), rc);
+            goto finish;
+        }
+    }
+    
+    if (!opt_flag(opt, OPT_Quiet))
+        printf("Removed %u weapon models from '%s'\n", rmCount, buf_str(path));
+    
+finish:
+    pfs_close(&src);
+    pfs_close(&dst);
+    return rc;
+}
+
 int wep_rm_handle(Opts* opt, Buffer* path)
 {
     const char* str = buf_str(path);
@@ -132,7 +183,7 @@ int wep_rm_handle(Opts* opt, Buffer* path)
     }
     else if (strcmp(str, "eqg") == 0)
     {
-        
+        rc = wep_rm_handle_eqg(opt, path);
     }
     else
     {
