@@ -15,7 +15,7 @@ static uint32_t hash_int64_impl(uint32_t lo, uint32_t hi)
 uint32_t hash_int64(int64_t key)
 {
     key++;
-    return hash_int64_impl(key & 0x00000000ffffffLL, key & 0xffffffff00000000LL);
+    return hash_int64_impl((uint32_t)(key & 0x00000000ffffffLL), (uint32_t)((key & 0xffffffff00000000LL) >> 32LL));
 }
 
 uint32_t hash_cstr(const char* key, uint32_t len)
